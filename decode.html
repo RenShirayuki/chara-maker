@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sealed Card Reader</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="container">
+  <h1>Sealed Card Reader</h1>
+  <p class="subtitle">Reveal what the card hides</p>
+
+  <div class="decrypt-drop" onclick="document.getElementById('decryptInput').click()">
+    <span class="icon">🔍</span>
+    Drop a card image here or click to browse
+  </div>
+  <input type="file" id="decryptInput" accept="image/png" hidden onchange="handleDecrypt(this)">
+
+  <div class="decrypt-result" id="decryptResult">
+    <div class="dr-label">Character</div>
+    <div class="dr-name" id="drName"></div>
+    <div class="dr-label">Sealed Personality</div>
+    <div class="dr-text" id="drText"></div>
+  </div>
+
+  <div class="nav-link"><a href="index.html">← Back to the maker</a></div>
+</div>
+
+<script src="stego.js"></script>
+<script>
+function handleDecrypt(input){
+  const f=input.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=e=>{
+    const img=new Image();
+    img.onload=()=>{
+      const c=document.createElement('canvas');
+      c.width=img.naturalWidth; c.height=img.naturalHeight;
+      c.getContext('2d').drawImage(img,0,0);
+      const text=decodeLSB(c);
+      document.getElementById('drName').textContent=f.name.replace(/_card\.png$/i,'').replace(/_/g,' ')||'—';
+      const tEl=document.getElementById('drText');
+      if(text){ tEl.textContent=`"${text}"`; tEl.className='dr-text'; }
+      else { tEl.textContent='No sealed personality found in this image. (Make sure it is the original .png — converting to JPEG destroys the hidden data.)'; tEl.className='dr-empty'; }
+      document.getElementById('decryptResult').classList.add('show');
+    };
+    img.src=e.target.result;
+  };
+  r.readAsDataURL(f); input.value='';
+}
+</script>
+</body>
+</html>
