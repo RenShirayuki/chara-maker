@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Character Maker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Oswald:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
@@ -217,7 +220,6 @@ function drawEditor(){
 }
 function editorRotate(d){ edRot=(edRot+d+360)%360; clampPan(); drawEditor(); }
 
-/* mouse: drag + wheel zoom */
 ec.addEventListener('mousedown', e=>{ edDragging=true; edLastX=e.clientX; edLastY=e.clientY; ec.classList.add('dragging'); });
 window.addEventListener('mousemove', e=>{
   if(!edDragging) return;
@@ -234,7 +236,6 @@ ec.addEventListener('wheel', e=>{
   clampPan(); drawEditor();
 }, {passive:false});
 
-/* touch: drag + pinch zoom */
 function pinchDist(t){ const dx=t[0].clientX-t[1].clientX, dy=t[0].clientY-t[1].clientY; return Math.hypot(dx,dy); }
 ec.addEventListener('touchstart', e=>{
   e.preventDefault();
@@ -298,14 +299,17 @@ function generate(){
   const w=document.getElementById('cardWrapper'); w.classList.add('show'); w.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 
-/* DOWNLOAD */
+/* DOWNLOAD — x4, waits for web fonts so the captured card uses them */
 function downloadCard(){
-  html2canvas(document.getElementById('advCard'),{backgroundColor:'#0a0a0a',scale:2,useCORS:true}).then(c=>{
-    if(stegoPayload) encodeLSB(c, stegoPayload);
-    const a=document.createElement('a');
-    a.download=document.getElementById('cardName').textContent.replace(/\s+/g,'_')+'_card.png';
-    a.href=c.toDataURL('image/png'); a.click();
-  });
+  const run=()=>{
+    html2canvas(document.getElementById('advCard'),{backgroundColor:'#0a0a0a',scale:4,useCORS:true}).then(c=>{
+      if(stegoPayload) encodeLSB(c, stegoPayload);
+      const a=document.createElement('a');
+      a.download=document.getElementById('cardName').textContent.replace(/\s+/g,'_')+'_card.png';
+      a.href=c.toDataURL('image/png'); a.click();
+    });
+  };
+  if(document.fonts && document.fonts.ready){ document.fonts.ready.then(run); } else { run(); }
 }
 
 /* RESET */
