@@ -84,29 +84,31 @@
   .decrypt-result .dr-text{font-size:.85rem;font-style:italic;color:var(--text);line-height:1.7}
   .decrypt-result .dr-empty{font-size:.75rem;color:#555;font-style:italic}
 
-  /* EDITOR MODAL */
-  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:1000;align-items:center;justify-content:center;padding:20px}
+  /* ===== EDITOR ===== */
+  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:1000;align-items:center;justify-content:center;padding:20px}
   .modal-overlay.show{display:flex}
-  .modal{background:var(--surface);border:1px solid var(--border);border-radius:10px;width:100%;max-width:460px;overflow:hidden}
-  .modal-head{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--border)}
+  .modal{background:var(--surface);border:1px solid var(--border);border-radius:12px;width:100%;max-width:420px;overflow:hidden}
+  .modal-head{display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid var(--border)}
   .modal-head span{font-size:.7rem;letter-spacing:3px;text-transform:uppercase;color:var(--muted)}
   .modal-close{background:none;border:none;color:var(--muted);font-size:1.1rem;cursor:pointer;padding:0 4px;width:auto;margin:0}
   .modal-close:hover{color:var(--text);opacity:1}
-  .modal-body{padding:20px}
-  .editor-canvas-wrap{position:relative;width:100%;background:var(--bg);border:1px solid var(--border);border-radius:6px;overflow:hidden;display:flex;align-items:center;justify-content:center}
-  #editorCanvas{display:block;max-width:100%;cursor:grab}
+  .modal-body{padding:0;position:relative;background:#000}
+  #editorCanvas{display:block;width:100%;cursor:grab;touch-action:none}
   #editorCanvas.dragging{cursor:grabbing}
-  .editor-tools{display:flex;align-items:center;gap:10px;margin-top:14px;flex-wrap:wrap}
-  .editor-tools button{width:auto;padding:8px 14px;font-size:.65rem;margin:0;background:var(--bg);border:1px solid var(--border);color:var(--muted);font-weight:400;letter-spacing:1px}
-  .editor-tools button:hover{border-color:#555;color:var(--text);opacity:1}
-  .zoom-group{display:flex;align-items:center;gap:8px;flex:1;min-width:140px}
-  .zoom-group label{font-size:.6rem;color:var(--muted);letter-spacing:1px;text-transform:uppercase;white-space:nowrap;margin:0}
-  .zoom-group input[type="range"]{flex:1;accent-color:#888;height:3px;cursor:pointer}
-  .modal-foot{display:flex;gap:10px;padding:16px 20px;border-top:1px solid var(--border)}
+  .rotate-btn{
+    position:absolute;bottom:16px;left:50%;transform:translateX(-50%);
+    width:44px;height:44px;border-radius:50%;
+    background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);
+    color:#fff;font-size:1.2rem;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+    transition:background .2s;margin:0;padding:0;
+  }
+  .rotate-btn:hover{background:rgba(255,255,255,.22)}
+  .modal-foot{display:flex;gap:10px;padding:14px 20px;border-top:1px solid var(--border)}
   .modal-foot button{flex:1;margin:0}
   .modal-foot .btn-cancel{background:transparent;border:1px solid var(--border);color:var(--muted);font-weight:400}
   .modal-foot .btn-cancel:hover{border-color:#555;color:var(--text);opacity:1}
-  .crop-hint{font-size:.58rem;color:#444;text-align:center;margin-top:8px;letter-spacing:1px;font-style:italic}
 </style>
 </head>
 <body>
@@ -235,7 +237,7 @@
   </div>
 </div>
 
-<!-- EDITOR MODAL -->
+<!-- EDITOR -->
 <div class="modal-overlay" id="editorModal">
   <div class="modal">
     <div class="modal-head">
@@ -243,19 +245,8 @@
       <button class="modal-close" onclick="closeEditor()">✕</button>
     </div>
     <div class="modal-body">
-      <div class="editor-canvas-wrap">
-        <canvas id="editorCanvas" width="420" height="320"></canvas>
-      </div>
-      <div class="editor-tools">
-        <button onclick="editorRotate(-90)" title="Rotate Left">↺</button>
-        <button onclick="editorRotate(90)" title="Rotate Right">↻</button>
-        <button onclick="editorReset()">Reset</button>
-        <div class="zoom-group">
-          <label>Zoom</label>
-          <input type="range" id="zoomSlider" min="100" max="300" value="100" oninput="editorZoom(this.value)">
-        </div>
-      </div>
-      <div class="crop-hint">Drag to reposition · Scroll or slide to zoom</div>
+      <canvas id="editorCanvas"></canvas>
+      <button class="rotate-btn" onclick="editorRotate(90)" title="Rotate">↻</button>
     </div>
     <div class="modal-foot">
       <button onclick="applyEditor()">Apply</button>
@@ -278,17 +269,23 @@ function onPhotoSelect(input){
 }
 function removePhoto(){photoDataURL=null;document.getElementById('photoPreview').src='';document.getElementById('photoDrop').classList.remove('has-img');document.getElementById('photoActions').classList.remove('show');document.getElementById('photoInput').value='';}
 
-/* ========== EDITOR (1:1 CROP) ========== */
-let edImg=null, edRot=0, edZoom=1, edPanX=0, edPanY=0;
-let edDragging=false, edLastX=0, edLastY=0;
-const CROP=220;
+/* ========== EDITOR — Google-style ========== */
+let edImg=null,edRot=0,edZoom=1,edPanX=0,edPanY=0;
+let edDragging=false,edLastX=0,edLastY=0;
+let edPinchDist=0;
+const ec=document.getElementById('editorCanvas');
+const ectx=ec.getContext('2d');
 
 function openEditor(){
   if(!photoDataURL)return;
   edImg=new Image();
   edImg.onload=()=>{
     edRot=0;edZoom=1;edPanX=0;edPanY=0;
-    document.getElementById('zoomSlider').value=100;
+    /* size canvas to modal */
+    const w=ec.parentElement.clientWidth;
+    const h=Math.min(w*0.85, 380);
+    ec.width=w*2; ec.height=h*2;      /* 2x for retina */
+    ec.style.height=h+'px';
     drawEditor();
     document.getElementById('editorModal').classList.add('show');
   };
@@ -296,110 +293,111 @@ function openEditor(){
 }
 function closeEditor(){document.getElementById('editorModal').classList.remove('show');}
 
+function cropRadius(){return Math.min(ec.width,ec.height)*0.36;}
+
 function rotDims(){
-  const swap=edRot===90||edRot===270;
-  return{w:swap?edImg.naturalHeight:edImg.naturalWidth, h:swap?edImg.naturalWidth:edImg.naturalHeight};
+  const s=edRot===90||edRot===270;
+  return{w:s?edImg.naturalHeight:edImg.naturalWidth,h:s?edImg.naturalWidth:edImg.naturalHeight};
 }
 function baseScale(){
-  const d=rotDims();
-  return Math.max(CROP/d.w, CROP/d.h);
+  const d=rotDims(),r=cropRadius();
+  return Math.max(r*2/d.w, r*2/d.h);
 }
 function clampPan(){
-  const s=baseScale()*edZoom, d=rotDims();
-  const mx=(d.w*s-CROP)/2, my=(d.h*s-CROP)/2;
+  const s=baseScale()*edZoom,d=rotDims(),r=cropRadius();
+  const mx=(d.w*s)/2-r, my=(d.h*s)/2-r;
   edPanX=Math.max(-mx,Math.min(edPanX,mx));
   edPanY=Math.max(-my,Math.min(edPanY,my));
 }
 
 function drawEditor(){
-  const cv=document.getElementById('editorCanvas'), ctx=cv.getContext('2d');
-  const cx=cv.width/2, cy=cv.height/2;
-  const cropX=cx-CROP/2, cropY=cy-CROP/2;
+  const W=ec.width,H=ec.height,cx=W/2,cy=H/2,r=cropRadius();
   const s=baseScale()*edZoom;
 
-  ctx.clearRect(0,0,cv.width,cv.height);
-  ctx.fillStyle='#0a0a0a';ctx.fillRect(0,0,cv.width,cv.height);
+  ectx.clearRect(0,0,W,H);
+  ectx.fillStyle='#000';ectx.fillRect(0,0,W,H);
 
-  /* image clipped to crop square */
-  ctx.save();
-  ctx.beginPath();ctx.rect(cropX,cropY,CROP,CROP);ctx.clip();
-  ctx.translate(cx+edPanX, cy+edPanY);
-  ctx.rotate(edRot*Math.PI/180);
-  ctx.drawImage(edImg, -edImg.naturalWidth*s/2, -edImg.naturalHeight*s/2, edImg.naturalWidth*s, edImg.naturalHeight*s);
-  ctx.restore();
+  /* image clipped to circle */
+  ectx.save();
+  ectx.beginPath();ectx.arc(cx,cy,r,0,Math.PI*2);ectx.clip();
+  ectx.translate(cx+edPanX,cy+edPanY);
+  ectx.rotate(edRot*Math.PI/180);
+  ectx.drawImage(edImg,-edImg.naturalWidth*s/2,-edImg.naturalHeight*s/2,edImg.naturalWidth*s,edImg.naturalHeight*s);
+  ectx.restore();
 
-  /* dim outside */
-  ctx.fillStyle='rgba(0,0,0,.65)';
-  ctx.fillRect(0,0,cv.width,cropY);
-  ctx.fillRect(0,cropY+CROP,cv.width,cv.height-cropY-CROP);
-  ctx.fillRect(0,cropY,cropX,CROP);
-  ctx.fillRect(cropX+CROP,cropY,cv.width-cropX-CROP,CROP);
+  /* dim outside circle */
+  ectx.save();
+  ectx.beginPath();
+  ectx.rect(0,0,W,H);
+  ectx.arc(cx,cy,r,0,Math.PI*2,true);
+  ectx.fillStyle='rgba(0,0,0,.55)';
+  ectx.fill('evenodd');
+  ectx.restore();
 
-  /* rule of thirds */
-  ctx.strokeStyle='rgba(255,255,255,.12)';ctx.lineWidth=.5;
-  for(let i=1;i<3;i++){
-    ctx.beginPath();ctx.moveTo(cropX+CROP*i/3,cropY);ctx.lineTo(cropX+CROP*i/3,cropY+CROP);ctx.stroke();
-    ctx.beginPath();ctx.moveTo(cropX,cropY+CROP*i/3);ctx.lineTo(cropX+CROP,cropY+CROP*i/3);ctx.stroke();
-  }
-
-  /* border */
-  ctx.strokeStyle='rgba(255,255,255,.35)';ctx.lineWidth=1;
-  ctx.strokeRect(cropX,cropY,CROP,CROP);
-
-  /* corner accents */
-  const cl=20;ctx.strokeStyle='#fff';ctx.lineWidth=2.5;
-  ctx.beginPath();ctx.moveTo(cropX,cropY+cl);ctx.lineTo(cropX,cropY);ctx.lineTo(cropX+cl,cropY);ctx.stroke();
-  ctx.beginPath();ctx.moveTo(cropX+CROP-cl,cropY);ctx.lineTo(cropX+CROP,cropY);ctx.lineTo(cropX+CROP,cropY+cl);ctx.stroke();
-  ctx.beginPath();ctx.moveTo(cropX,cropY+CROP-cl);ctx.lineTo(cropX,cropY+CROP);ctx.lineTo(cropX+cl,cropY+CROP);ctx.stroke();
-  ctx.beginPath();ctx.moveTo(cropX+CROP-cl,cropY+CROP);ctx.lineTo(cropX+CROP,cropY+CROP);ctx.lineTo(cropX+CROP,cropY+CROP-cl);ctx.stroke();
+  /* circle border */
+  ectx.beginPath();ectx.arc(cx,cy,r,0,Math.PI*2);
+  ectx.strokeStyle='rgba(255,255,255,.4)';ectx.lineWidth=2;ectx.stroke();
 }
 
 function editorRotate(d){edRot=(edRot+d+360)%360;clampPan();drawEditor();}
-function editorZoom(v){edZoom=v/100;clampPan();drawEditor();}
-function editorReset(){edRot=0;edZoom=1;edPanX=0;edPanY=0;document.getElementById('zoomSlider').value=100;drawEditor();}
 
-/* drag to pan */
-const ec=document.getElementById('editorCanvas');
+/* --- mouse: drag to pan, scroll to zoom --- */
 ec.addEventListener('mousedown',e=>{edDragging=true;edLastX=e.clientX;edLastY=e.clientY;ec.classList.add('dragging');});
-ec.addEventListener('mousemove',e=>{
+window.addEventListener('mousemove',e=>{
   if(!edDragging)return;
-  edPanX+=e.clientX-edLastX; edPanY+=e.clientY-edLastY;
-  edLastX=e.clientX; edLastY=e.clientY;
-  clampPan(); drawEditor();
+  const rect=ec.getBoundingClientRect(),sx=ec.width/rect.width,sy=ec.height/rect.height;
+  edPanX+=(e.clientX-edLastX)*sx;edPanY+=(e.clientY-edLastY)*sy;
+  edLastX=e.clientX;edLastY=e.clientY;
+  clampPan();drawEditor();
 });
-ec.addEventListener('mouseup',()=>{edDragging=false;ec.classList.remove('dragging');});
-ec.addEventListener('mouseleave',()=>{edDragging=false;ec.classList.remove('dragging');});
+window.addEventListener('mouseup',()=>{edDragging=false;ec.classList.remove('dragging');});
 
-/* scroll to zoom */
 ec.addEventListener('wheel',e=>{
   e.preventDefault();
-  const sl=document.getElementById('zoomSlider');
-  let v=parseInt(sl.value)+(e.deltaY<0?10:-10);
-  v=Math.max(100,Math.min(300,v));
-  sl.value=v; editorZoom(v);
+  edZoom*=e.deltaY<0?1.07:0.93;
+  edZoom=Math.max(1,Math.min(6,edZoom));
+  clampPan();drawEditor();
 },{passive:false});
 
-/* touch */
-ec.addEventListener('touchstart',e=>{e.preventDefault();const t=e.touches[0];edDragging=true;edLastX=t.clientX;edLastY=t.clientY;ec.classList.add('dragging');},{passive:false});
+/* --- touch: drag to pan, pinch to zoom --- */
+function pinchDist(t){const dx=t[0].clientX-t[1].clientX,dy=t[0].clientY-t[1].clientY;return Math.hypot(dx,dy);}
+
+ec.addEventListener('touchstart',e=>{
+  e.preventDefault();
+  if(e.touches.length===1){edDragging=true;edLastX=e.touches[0].clientX;edLastY=e.touches[0].clientY;}
+  else if(e.touches.length===2){edDragging=false;edPinchDist=pinchDist(e.touches);}
+},{passive:false});
+
 ec.addEventListener('touchmove',e=>{
-  e.preventDefault();if(!edDragging)return;
-  const t=e.touches[0];
-  edPanX+=t.clientX-edLastX; edPanY+=t.clientY-edLastY;
-  edLastX=t.clientX; edLastY=t.clientY;
-  clampPan(); drawEditor();
+  e.preventDefault();
+  const rect=ec.getBoundingClientRect(),sx=ec.width/rect.width,sy=ec.height/rect.height;
+  if(e.touches.length===1&&edDragging){
+    edPanX+=(e.touches[0].clientX-edLastX)*sx;
+    edPanY+=(e.touches[0].clientY-edLastY)*sy;
+    edLastX=e.touches[0].clientX;edLastY=e.touches[0].clientY;
+    clampPan();drawEditor();
+  }else if(e.touches.length===2){
+    const d=pinchDist(e.touches);
+    if(edPinchDist>0){edZoom*=d/edPinchDist;edZoom=Math.max(1,Math.min(6,edZoom));clampPan();drawEditor();}
+    edPinchDist=d;
+  }
 },{passive:false});
-ec.addEventListener('touchend',()=>{edDragging=false;ec.classList.remove('dragging');});
 
+ec.addEventListener('touchend',e=>{
+  if(e.touches.length<2)edPinchDist=0;
+  if(e.touches.length===0)edDragging=false;
+});
+
+/* --- apply: output square --- */
 function applyEditor(){
-  const s=baseScale()*edZoom;
+  const r=cropRadius(),s=baseScale()*edZoom;
+  const size=r*2;
   const out=document.createElement('canvas');
-  const R=2; /* 2x quality */
-  out.width=CROP*R; out.height=CROP*R;
+  out.width=size;out.height=size;
   const ctx=out.getContext('2d');
-  ctx.translate(out.width/2+edPanX*R, out.height/2+edPanY*R);
+  ctx.translate(size/2+edPanX,size/2+edPanY);
   ctx.rotate(edRot*Math.PI/180);
-  const ds=s*R;
-  ctx.drawImage(edImg, -edImg.naturalWidth*ds/2, -edImg.naturalHeight*ds/2, edImg.naturalWidth*ds, edImg.naturalHeight*ds);
+  ctx.drawImage(edImg,-edImg.naturalWidth*s/2,-edImg.naturalHeight*s/2,edImg.naturalWidth*s,edImg.naturalHeight*s);
   photoDataURL=out.toDataURL('image/png');
   document.getElementById('photoPreview').src=photoDataURL;
   closeEditor();
