@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Character Maker</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  :root{--bg:#0a0a0a;--surface:#141414;--border:#2a2a2a;--text:#e0e0e0;--muted:#777;--accent:#fff}
+  body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;justify-content:center;padding:40px 20px;line-height:1.6}
+  .container{width:100%;max-width:520px}
+  h1{font-size:1.4rem;font-weight:300;letter-spacing:6px;text-transform:uppercase;text-align:center;margin-bottom:8px;color:var(--accent)}
+  .subtitle{text-align:center;font-size:.75rem;color:var(--muted);letter-spacing:3px;text-transform:uppercase;margin-bottom:40px}
+  .field{margin-bottom:24px}
+  label{display:block;font-size:.7rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+  input[type="text"],input[type="number"],select,textarea{width:100%;padding:12px 16px;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:.95rem;font-family:inherit;transition:border-color .2s;outline:none}
+  input:focus,select:focus,textarea:focus{border-color:#555}
+  select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23777' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center}
+  select option{background:var(--surface);color:var(--text)}
+  textarea{resize:vertical;min-height:90px}
+  .custom-input{display:none;margin-top:8px}
+  .custom-input.show{display:block}
+  .row{display:flex;gap:16px}
+  .row .field{flex:1}
+  button{width:100%;padding:14px;margin-top:12px;background:var(--accent);color:var(--bg);border:none;border-radius:6px;font-size:.8rem;letter-spacing:3px;text-transform:uppercase;cursor:pointer;font-weight:600;transition:opacity .2s}
+  button:hover{opacity:.85}
+
+  .photo-section{text-align:center;margin-bottom:28px}
+  .photo-drop{width:110px;height:110px;margin:0 auto 10px;border:2px dashed var(--border);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;overflow:hidden;transition:border-color .2s;background:var(--surface)}
+  .photo-drop:hover{border-color:#555}
+  .photo-drop img{width:100%;height:100%;object-fit:cover;display:none}
+  .photo-drop .placeholder{font-size:1.8rem;color:var(--muted);user-select:none}
+  .photo-drop.has-img .placeholder{display:none}
+  .photo-drop.has-img img{display:block}
+  .photo-hint{font-size:.65rem;color:var(--muted);letter-spacing:1px;text-transform:uppercase}
+  .photo-actions{display:none;gap:8px;justify-content:center;margin-top:6px}
+  .photo-actions.show{display:flex}
+  .photo-actions button{width:auto;padding:6px 14px;font-size:.6rem;margin:0;background:transparent;border:1px solid var(--border);color:var(--muted);font-weight:400}
+  .photo-actions button:hover{border-color:#555;color:var(--text);opacity:1}
+
+  .gender-options{display:flex;gap:10px}
+  .gender-opt{flex:1;padding:10px;text-align:center;background:var(--surface);border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:.8rem;letter-spacing:1px;text-transform:uppercase;transition:all .2s;color:var(--muted);user-select:none}
+  .gender-opt:hover{border-color:#555;color:var(--text)}
+  .gender-opt.active{border-color:var(--accent);color:var(--accent)}
+  .gender-opt.locked{opacity:.35;cursor:not-allowed;pointer-events:none}
+  .gender-note{font-size:.65rem;color:var(--muted);margin-top:6px;font-style:italic;display:none}
+  .gender-note.show{display:block}
+
+  .card-wrapper{display:none;margin-top:32px}
+  .card-wrapper.show{display:block;animation:fadeIn .4s ease}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+  .adv-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;position:relative}
+  .adv-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,#666,transparent)}
+  .card-header{text-align:center;padding:20px 24px 14px;border-bottom:1px solid var(--border)}
+  .card-header .guild{font-size:.6rem;letter-spacing:5px;text-transform:uppercase;color:var(--muted)}
+  .card-header .title{font-size:1rem;letter-spacing:4px;text-transform:uppercase;color:var(--accent);font-weight:300;margin-top:2px}
+  .card-body{display:flex;padding:20px 24px;gap:20px}
+  .card-photo{width:90px;height:90px;border-radius:8px;border:1px solid var(--border);overflow:hidden;flex-shrink:0;background:var(--bg);display:flex;align-items:center;justify-content:center}
+  .card-photo img{width:100%;height:100%;object-fit:cover}
+  .card-photo .no-photo{font-size:2rem;color:var(--border)}
+  .card-info{flex:1;min-width:0}
+  .card-name{font-size:1.15rem;font-weight:400;letter-spacing:2px;color:var(--accent);margin-bottom:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .card-stat{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #1e1e1e;font-size:.78rem}
+  .card-stat:last-child{border-bottom:none}
+  .card-stat .k{color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;font-size:.62rem}
+  .card-stat .v{text-align:right;color:var(--text)}
+  .card-footer{padding:10px 24px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;font-size:.55rem;color:#444;letter-spacing:2px;text-transform:uppercase}
+  .btn-row{display:flex;gap:12px;margin-top:12px}
+  .btn-row button{flex:1}
+  .btn-secondary{background:transparent!important;border:1px solid var(--border)!important;color:var(--muted)!important;font-weight:400!important}
+  .btn-secondary:hover{border-color:#555!important;color:var(--text)!important}
+
+  .decrypt-section{margin-top:48px;padding-top:32px;border-top:1px solid var(--border)}
+  .decrypt-section h2{font-size:.85rem;font-weight:300;letter-spacing:4px;text-transform:uppercase;text-align:center;color:var(--muted);margin-bottom:6px}
+  .decrypt-section .desc{text-align:center;font-size:.65rem;color:#444;margin-bottom:20px;letter-spacing:1px}
+  .decrypt-drop{border:2px dashed var(--border);border-radius:8px;padding:28px;text-align:center;cursor:pointer;transition:border-color .2s;color:var(--muted);font-size:.75rem;letter-spacing:1px}
+  .decrypt-drop:hover{border-color:#555}
+  .decrypt-drop .icon{font-size:1.4rem;margin-bottom:8px;display:block}
+  .decrypt-result{display:none;margin-top:16px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:20px}
+  .decrypt-result.show{display:block;animation:fadeIn .3s ease}
+  .decrypt-result .dr-label{font-size:.6rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+  .decrypt-result .dr-name{font-size:.95rem;color:var(--accent);letter-spacing:1px;margin-bottom:12px}
+  .decrypt-result .dr-text{font-size:.85rem;font-style:italic;color:var(--text);line-height:1.7}
+  .decrypt-result .dr-empty{font-size:.75rem;color:#555;font-style:italic}
+
+  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:1000;align-items:center;justify-content:center;padding:20px}
+  .modal-overlay.show{display:flex}
+  .modal{background:var(--surface);border:1px solid var(--border);border-radius:10px;width:100%;max-width:460px;overflow:hidden}
+  .modal-head{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--border)}
+  .modal-head span{font-size:.7rem;letter-spacing:3px;text-transform:uppercase;color:var(--muted)}
+  .modal-close{background:none;border:none;color:var(--muted);font-size:1.1rem;cursor:pointer;padding:0 4px;width:auto;margin:0}
+  .modal-close:hover{color:var(--text);opacity:1}
+  .modal-body{padding:20px}
+  .editor-canvas-wrap{position:relative;width:100%;background:var(--bg);border:1px solid var(--border);border-radius:6px;overflow:hidden;display:flex;align-items:center;justify-content:center;min-height:260px}
+  #editorCanvas{display:block;max-width:100%;cursor:crosshair}
+  .editor-tools{display:flex;align-items:center;gap:10px;margin-top:14px;flex-wrap:wrap}
+  .editor-tools button{width:auto;padding:8px 14px;font-size:.65rem;margin:0;background:var(--bg);border:1px solid var(--border);color:var(--muted);font-weight:400;letter-spacing:1px}
+  .editor-tools button:hover{border-color:#555;color:var(--text);opacity:1}
+  .editor-tools button.active-tool{border-color:var(--accent);color:var(--accent)}
+  .zoom-group{display:flex;align-items:center;gap:8px;flex:1;min-width:140px}
+  .zoom-group label{font-size:.6rem;color:var(--muted);letter-spacing:1px;text-transform:uppercase;white-space:nowrap;margin:0}
+  .zoom-group input[type="range"]{flex:1;accent-color:#888;height:3px;cursor:pointer}
+  .modal-foot{display:flex;gap:10px;padding:16px 20px;border-top:1px solid var(--border)}
+  .modal-foot button{flex:1;margin:0}
+  .modal-foot .btn-cancel{background:transparent;border:1px solid var(--border);color:var(--muted);font-weight:400}
+  .modal-foot .btn-cancel:hover{border-color:#555;color:var(--text);opacity:1}
+  .crop-hint{font-size:.58rem;color:#444;text-align:center;margin-top:8px;letter-spacing:1px;font-style:italic}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Character Maker</h1>
+  <p class="subtitle">Forge your identity</p>
+
+  <div class="photo-section">
+    <label style="text-align:center">Portrait</label>
+    <div class="photo-drop" id="photoDrop" onclick="document.getElementById('photoInput').click()">
+      <span class="placeholder">+</span>
+      <img id="photoPreview" alt="">
+    </div>
+    <input type="file" id="photoInput" accept="image/*" hidden onchange="onPhotoSelect(this)">
+    <div class="photo-hint">Click to upload</div>
+    <div class="photo-actions" id="photoActions">
+      <button onclick="openEditor()">✎ Edit</button>
+      <button onclick="removePhoto()">✕ Remove</button>
+    </div>
+  </div>
+
+  <div class="field">
+    <label>Name</label>
+    <input type="text" id="name" placeholder="Enter character name" maxlength="50">
+  </div>
+
+  <div class="row">
+    <div class="field">
+      <label>Age</label>
+      <input type="number" id="age" placeholder="—" min="0" max="99999">
+    </div>
+    <div class="field">
+      <label>Gender</label>
+      <div class="gender-options">
+        <div class="gender-opt" data-g="Male" onclick="pickGender(this)">Male</div>
+        <div class="gender-opt" data-g="Female" onclick="pickGender(this)">Female</div>
+        <div class="gender-opt" data-g="Neutral" onclick="pickGender(this)">Neutral</div>
+      </div>
+      <div class="gender-note" id="genderNote">⚬ Gender set to Neutral by race</div>
+    </div>
+  </div>
+
+  <div class="field">
+    <label>Race</label>
+    <select id="race" onchange="onRaceChange(this)">
+      <option value="">Select…</option>
+      <option>Aasimar</option><option>Automaton</option><option>Bugbear</option>
+      <option>Changeling</option><option>Construct</option><option>Dragonborn</option>
+      <option>Dwarf</option><option>Elemental</option><option>Elf</option>
+      <option>Firbolg</option><option>Genasi</option><option>Gnome</option>
+      <option>Goblin</option><option>Golem</option><option>Goliath</option>
+      <option>Half-Elf</option><option>Half-Orc</option><option>Halfling</option>
+      <option>Homunculus</option><option>Human</option><option>Kalashtar</option>
+      <option>Kenku</option><option>Kobold</option><option>Lizardfolk</option>
+      <option>Modron</option><option>Ooze</option><option>Orc</option>
+      <option>Phantom</option><option>Shadow</option><option>Shifter</option>
+      <option>Slime</option><option>Spirit</option><option>Tabaxi</option>
+      <option>Tiefling</option><option>Triton</option><option>Undead</option>
+      <option value="__custom">✎ Custom…</option>
+    </select>
+    <input type="text" class="custom-input" id="raceCustom" placeholder="Type race…" maxlength="40" oninput="checkCustomRace()">
+  </div>
+
+  <div class="field">
+    <label>Class</label>
+    <select id="charClass" onchange="toggleCustom(this,'classCustom')">
+      <option value="">Select…</option>
+      <option>Artificer</option><option>Barbarian</option><option>Bard</option>
+      <option>Blood Hunter</option><option>Cleric</option><option>Druid</option>
+      <option>Fighter</option><option>Monk</option><option>Necromancer</option>
+      <option>Paladin</option><option>Psion</option><option>Ranger</option>
+      <option>Rogue</option><option>Samurai</option><option>Sorcerer</option>
+      <option>Warlock</option><option>Witch</option><option>Wizard</option>
+      <option value="__custom">✎ Custom…</option>
+    </select>
+    <input type="text" class="custom-input" id="classCustom" placeholder="Type class…" maxlength="40">
+  </div>
+
+  <div class="field">
+    <label>Personality</label>
+    <textarea id="personality" placeholder="Describe their temperament, quirks, flaws, virtues…" maxlength="500"></textarea>
+  </div>
+
+  <button onclick="generate()">Create Character</button>
+
+  <div class="card-wrapper" id="cardWrapper">
+    <div class="adv-card" id="advCard">
+      <div class="card-header">
+        <div class="guild">Adventurer's Guild</div>
+        <div class="title">Registration Card</div>
+      </div>
+      <div class="card-body">
+        <div class="card-photo" id="cardPhoto"><span class="no-photo">◌</span></div>
+        <div class="card-info">
+          <div class="card-name" id="cardName"></div>
+          <div class="card-stat"><span class="k">Age</span><span class="v" id="cardAge"></span></div>
+          <div class="card-stat"><span class="k">Gender</span><span class="v" id="cardGender"></span></div>
+          <div class="card-stat"><span class="k">Race</span><span class="v" id="cardRace"></span></div>
+          <div class="card-stat"><span class="k">Class</span><span class="v" id="cardClass"></span></div>
+        </div>
+      </div>
+      <div class="card-footer">
+        <span id="cardId"></span>
+        <span>Verified ✓</span>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button onclick="downloadCard()">Download Card</button>
+      <button class="btn-secondary" onclick="resetForm()">Start Over</button>
+    </div>
+  </div>
+
+  <div class="decrypt-section">
+    <h2>Reveal Sealed Personality</h2>
+    <p class="desc">Upload a downloaded card to extract the hidden personality</p>
+    <div class="decrypt-drop" onclick="document.getElementById('decryptInput').click()">
+      <span class="icon">🔍</span>Drop card image here or click to browse
+    </div>
+    <input type="file" id="decryptInput" accept="image/png" hidden onchange="handleDecrypt(this)">
+    <div class="decrypt-result" id="decryptResult">
+      <div class="dr-label">Character</div>
+      <div class="dr-name" id="drName"></div>
+      <div class="dr-label">Sealed Personality</div>
+      <div class="dr-text" id="drText"></div>
+    </div>
+  </div>
+</div>
+
+<!-- EDITOR MODAL -->
+<div class="modal-overlay" id="editorModal">
+  <div class="modal">
+    <div class="modal-head">
+      <span>Edit Portrait</span>
+      <button class="modal-close" onclick="closeEditor()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="editor-canvas-wrap">
+        <canvas id="editorCanvas" width="420" height="300"></canvas>
+      </div>
+      <div class="editor-tools">
+        <button onclick="editorRotate(-90)" title="Rotate Left">↺</button>
+        <button onclick="editorRotate(90)" title="Rotate Right">↻</button>
+        <button id="cropToggle" onclick="toggleCropMode()">⬚ Crop</button>
+        <button onclick="editorReset()">Reset</button>
+        <div class="zoom-group">
+          <label>Zoom</label>
+          <input type="range" id="zoomSlider" min="20" max="200" value="100" oninput="editorZoom(this.value)">
+        </div>
+      </div>
+      <div class="crop-hint" id="cropHint" style="display:none">Drag to move · Pull corners to resize crop area</div>
+    </div>
+    <div class="modal-foot">
+      <button onclick="applyEditor()">Apply</button>
+      <button class="btn-cancel" onclick="closeEditor()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let selectedGender='',photoDataURL=null,stegoPayload='';
+const GENDERLESS=['automaton','construct','elemental','golem','homunculus','modron','ooze','phantom','shadow','slime','spirit','undead'];
+const MAGIC='QWEN_CHAR';
+
+/* PHOTO */
+function onPhotoSelect(input){
+  const f=input.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=e=>{photoDataURL=e.target.result;document.getElementById('photoPreview').src=photoDataURL;document.getElementById('photoDrop').classList.add('has-img');document.getElementById('photoActions').classList.add('show');openEditor();};
+  r.readAsDataURL(f);
+}
+function removePhoto(){photoDataURL=null;document.getElementById('photoPreview').src='';document.getElementById('photoDrop').classList.remove('has-img');document.getElementById('photoActions').classList.remove('show');document.getElementById('photoInput').value='';}
+
+/* EDITOR */
+let edImg=null,edRot=0,edScale=1,edCropMode=false,edCrop=null,edDrag=null,edDragStart={x:0,y:0},edCropStart={x:0,y:0,w:0,h:0};
+const HANDLE=8,MIN_CROP=30;
+
+function openEditor(){
+  if(!photoDataURL)return;
+  edImg=new Image();
+  edImg.onload=()=>{edRot=0;edScale=1;edCrop=null;edCropMode=false;document.getElementById('zoomSlider').value=100;document.getElementById('cropToggle').classList.remove('active-tool');document.getElementById('cropHint').style.display='none';drawEditor();document.getElementById('editorModal').classList.add('show');};
+  edImg.src=photoDataURL;
+}
+function closeEditor(){document.getElementById('editorModal').classList.remove('show');}
+
+function getWorking(){
+  const c=document.createElement('canvas'),x=c.getContext('2d');
+  const w=edImg.naturalWidth*edScale,h=edImg.naturalHeight*edScale;
+  const swap=edRot===90||edRot===270;
+  c.width=swap?h:w;c.height=swap?w:h;
+  x.translate(c.width/2,c.height/2);x.rotate(edRot*Math.PI/180);x.drawImage(edImg,-w/2,-h/2,w,h);
+  return c;
+}
+
+function drawEditor(){
+  const cv=document.getElementById('editorCanvas'),ctx=cv.getContext('2d');
+  const work=getWorking();
+  const pad=10,maxW=cv.width-pad*2,maxH=cv.height-pad*2;
+  const ratio=Math.min(maxW/work.width,maxH/work.height,1);
+  const dw=work.width*ratio,dh=work.height*ratio;
+  const dx=(cv.width-dw)/2,dy=(cv.height-dh)/2;
+  ctx.clearRect(0,0,cv.width,cv.height);
+  ctx.fillStyle='#0a0a0a';ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.drawImage(work,dx,dy,dw,dh);
+  cv._imgRect={x:dx,y:dy,w:dw,h:dh,ratio};
+  if(edCropMode){
+    if(!edCrop)edCrop={x:dx+dw*.15,y:dy+dh*.15,w:dw*.7,h:dh*.7};
+    ctx.fillStyle='rgba(0,0,0,.6)';ctx.fillRect(0,0,cv.width,cv.height);
+    ctx.save();ctx.beginPath();ctx.rect(edCrop.x,edCrop.y,edCrop.w,edCrop.h);ctx.clip();
+    ctx.drawImage(work,dx,dy,dw,dh);ctx.restore();
+    ctx.strokeStyle='#fff';ctx.lineWidth=1.5;ctx.strokeRect(edCrop.x,edCrop.y,edCrop.w,edCrop.h);
+    ctx.fillStyle='#fff';
+    getHandles().forEach(h=>ctx.fillRect(h.x-HANDLE/2,h.y-HANDLE/2,HANDLE,HANDLE));
+    ctx.strokeStyle='rgba(255,255,255,.15)';ctx.lineWidth=.5;
+    for(let i=1;i<3;i++){
+      ctx.beginPath();ctx.moveTo(edCrop.x+edCrop.w*i/3,edCrop.y);ctx.lineTo(edCrop.x+edCrop.w*i/3,edCrop.y+edCrop.h);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(edCrop.x,edCrop.y+edCrop.h*i/3);ctx.lineTo(edCrop.x+edCrop.w,edCrop.y+edCrop.h*i/3);ctx.stroke();
+    }
+  }
+}
+
+function getHandles(){
+  const c=edCrop;
+  return[{x:c.x,y:c.y,t:'nw'},{x:c.x+c.w/2,y:c.y,t:'n'},{x:c.x+c.w,y:c.y,t:'ne'},{x:c.x,y:c.y+c.h/2,t:'w'},{x:c.x+c.w,y:c.y+c.h/2,t:'e'},{x:c.x,y:c.y+c.h,t:'sw'},{x:c.x+c.w/2,y:c.y+c.h,t:'s'},{x:c.x+c.w,y:c.y+c.h,t:'se'}];
+}
+
+function editorRotate(d){edRot=(edRot+d+360)%360;edCrop=null;drawEditor();}
+function editorZoom(v){edScale=v/100;edCrop=null;drawEditor();}
+function editorReset(){edRot=0;edScale=1;edCrop=null;edCropMode=false;document.getElementById('zoomSlider').value=100;document.getElementById('cropToggle').classList.remove('active-tool');document.getElementById('cropHint').style.display='none';drawEditor();}
+function toggleCropMode(){edCropMode=!edCropMode;edCrop=null;document.getElementById('cropToggle').classList.toggle('active-tool',edCropMode);document.getElementById('cropHint').style.display=edCropMode?'block':'none';drawEditor();}
+
+const ec=document.getElementById('editorCanvas');
+function getPos(e){const r=ec.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top};}
+
+ec.addEventListener('mousedown',e=>{
+  if(!edCropMode||!edCrop)return;
+  const p=getPos(e);
+  for(const h of getHandles()){if(Math.abs(p.x-h.x)<HANDLE&&Math.abs(p.y-h.y)<HANDLE){edDrag=h.t;edDragStart=p;edCropStart={...edCrop};return;}}
+  if(p.x>=edCrop.x&&p.x<=edCrop.x+edCrop.w&&p.y>=edCrop.y&&p.y<=edCrop.y+edCrop.h){edDrag='move';edDragStart=p;edCropStart={...edCrop};}
+});
+
+ec.addEventListener('mousemove',e=>{
+  if(!edDrag||!edCrop)return;
+  const p=getPos(e),dx=p.x-edDragStart.x,dy=p.y-edDragStart.y;
+  const ir=ec._imgRect,s=edCropStart;
+  const clX=v=>Math.max(ir.x,Math.min(v,ir.x+ir.w)),clY=v=>Math.max(ir.y,Math.min(v,ir.y+ir.h));
+  if(edDrag==='move'){
+    edCrop.x=Math.max(ir.x,Math.min(s.x+dx,ir.x+ir.w-s.w));
+    edCrop.y=Math.max(ir.y,Math.min(s.y+dy,ir.y+ir.h-s.h));
+  }else{
+    let{x,y,w,h}=s;
+    if(edDrag.includes('w')){const nx=clX(s.x+dx);w=s.w-(nx-s.x);x=nx;}
+    if(edDrag.includes('e')){w=clX(s.x+s.w+dx)-s.x;}
+    if(edDrag.includes('n')){const ny=clY(s.y+dy);h=s.h-(ny-s.y);y=ny;}
+    if(edDrag.includes('s')){h=clY(s.y+s.h+dy)-s.y;}
+    if(w<MIN_CROP){w=MIN_CROP;if(edDrag.includes('w'))x=s.x+s.w-MIN_CROP;}
+    if(h<MIN_CROP){h=MIN_CROP;if(edDrag.includes('n'))y=s.y+s.h-MIN_CROP;}
+    edCrop={x,y,w,h};
+  }
+  drawEditor();
+});
+
+ec.addEventListener('mouseup',()=>{edDrag=null;});
+ec.addEventListener('mouseleave',()=>{edDrag=null;});
+ec.addEventListener('touchstart',e=>{e.preventDefault();const t=e.touches[0];ec.dispatchEvent(new MouseEvent('mousedown',{clientX:t.clientX,clientY:t.clientY}));},{passive:false});
+ec.addEventListener('touchmove',e=>{e.preventDefault();const t=e.touches[0];ec.dispatchEvent(new MouseEvent('mousemove',{clientX:t.clientX,clientY:t.clientY}));},{passive:false});
+ec.addEventListener('touchend',()=>{ec.dispatchEvent(new MouseEvent('mouseup'));});
+
+function applyEditor(){
+  const work=getWorking(),ir=ec._imgRect;
+  let out;
+  if(edCropMode&&edCrop){
+    const r=ir.ratio,sx=(edCrop.x-ir.x)/r,sy=(edCrop.y-ir.y)/r,sw=edCrop.w/r,sh=edCrop.h/r;
+    out=document.createElement('canvas');out.width=sw;out.height=sh;
+    out.getContext('2d').drawImage(work,sx,sy,sw,sh,0,0,sw,sh);
+  }else{out=work;}
+  photoDataURL=out.toDataURL('image/png');
+  document.getElementById('photoPreview').src=photoDataURL;
+  closeEditor();
+}
+
+/* GENDER */
+function pickGender(el){if(el.classList.contains('locked'))return;document.querySelectorAll('.gender-opt').forEach(o=>o.classList.remove('active'));el.classList.add('active');selectedGender=el.dataset.g;}
+function lockGender(){document.querySelectorAll('.gender-opt').forEach(o=>{o.classList.remove('active');o.classList.add('locked');if(o.dataset.g==='Neutral')o.classList.add('active');});selectedGender='Neutral';document.getElementById('genderNote').classList.add('show');}
+function unlockGender(){document.querySelectorAll('.gender-opt').forEach(o=>o.classList.remove('locked','active'));selectedGender='';document.getElementById('genderNote').classList.remove('show');}
+
+/* RACE / CUSTOM */
+function onRaceChange(sel){toggleCustom(sel,'raceCustom');if(sel.value==='__custom'){unlockGender();return;}GENDERLESS.includes(sel.value.toLowerCase())?lockGender():unlockGender();}
+function checkCustomRace(){const v=document.getElementById('raceCustom').value.trim().toLowerCase();GENDERLESS.some(g=>v.includes(g))?lockGender():unlockGender();}
+function toggleCustom(sel,id){const i=document.getElementById(id);if(sel.value==='__custom'){i.classList.add('show');i.focus();}else{i.classList.remove('show');i.value='';}}
+function getVal(sid,cid){const s=document.getElementById(sid);return s.value==='__custom'?(document.getElementById(cid).value.trim()||'—'):(s.value||'—');}
+
+/* STEGANOGRAPHY */
+function encodeLSB(canvas,text){
+  const ctx=canvas.getContext('2d'),img=ctx.getImageData(0,0,canvas.width,canvas.height),d=img.data;
+  const enc=new TextEncoder(),mB=enc.encode(MAGIC),tB=enc.encode(text);
+  const lB=new Uint8Array(4);new DataView(lB.buffer).setUint32(0,tB.length);
+  const p=new Uint8Array(mB.length+4+tB.length);p.set(mB,0);p.set(lB,mB.length);p.set(tB,mB.length+4);
+  const bits=[];for(const b of p)for(let i=7;i>=0;i--)bits.push((b>>i)&1);
+  if(bits.length>Math.floor(d.length/4)*3)return canvas;
+  let bi=0;for(let i=0;i<d.length&&bi<bits.length;i++){if(i%4===3)continue;d[i]=(d[i]&0xFE)|bits[bi++];}
+  ctx.putImageData(img,0,0);return canvas;
+}
+function decodeLSB(canvas){
+  const d=canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data;
+  const bits=[];for(let i=0;i<d.length;i++){if(i%4===3)continue;bits.push(d[i]&1);}
+  const toB=(s,c)=>{const b=[];for(let i=0;i<c;i++){let v=0;for(let j=0;j<8;j++)v=(v<<1)|bits[s+i*8+j];b.push(v);}return new Uint8Array(b);};
+  if(new TextDecoder().decode(toB(0,MAGIC.length))!==MAGIC)return null;
+  const len=new DataView(toB(MAGIC.length*8,4).buffer).getUint32(0);
+  if(len<=0||len>10000)return null;
+  return new TextDecoder().decode(toB((MAGIC.length+4)*8,len));
+}
+
+/* GENERATE */
+function generate(){
+  const name=document.getElementById('name').value.trim();
+  if(!name){const el=document.getElementById('name');el.style.borderColor='#666';el.focus();setTimeout(()=>el.style.borderColor='',1500);return;}
+  stegoPayload=document.getElementById('personality').value.trim();
+  document.getElementById('cardName').textContent=name;
+  document.getElementById('cardAge').textContent=document.getElementById('age').value||'—';
+  document.getElementById('cardGender').textContent=selectedGender||'—';
+  document.getElementById('cardRace').textContent=getVal('race','raceCustom');
+  document.getElementById('cardClass').textContent=getVal('charClass','classCustom');
+  document.getElementById('cardPhoto').innerHTML=photoDataURL?`<img src="${photoDataURL}" alt="">`:'<span class="no-photo">◌</span>';
+  document.getElementById('cardId').textContent='AG-'+Date.now().toString(36).toUpperCase().slice(-6);
+  const w=document.getElementById('cardWrapper');w.classList.add('show');w.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+/* DOWNLOAD */
+function downloadCard(){
+  html2canvas(document.getElementById('advCard'),{backgroundColor:'#0a0a0a',scale:2,useCORS:true}).then(c=>{
+    if(stegoPayload)encodeLSB(c,stegoPayload);
+    const a=document.createElement('a');
+    a.download=document.getElementById('cardName').textContent.replace(/\s+/g,'_')+'_card.png';
+    a.href=c.toDataURL('image/png');a.click();
+  });
+}
+
+/* DECRYPT */
+function handleDecrypt(input){
+  const f=input.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=e=>{
+    const img=new Image();
+    img.onload=()=>{
+      const c=document.createElement('canvas');c.width=img.naturalWidth;c.height=img.naturalHeight;
+      c.getContext('2d').drawImage(img,0,0);
+      const text=decodeLSB(c);
+      document.getElementById('drName').textContent=f.name.replace(/_card\.png$/i,'').replace(/_/g,' ')||'—';
+      const tEl=document.getElementById('drText');
+      if(text){tEl.textContent=`"${text}"`;tEl.className='dr-text';}
+      else{tEl.textContent='No sealed personality found in this image.';tEl.className='dr-empty';}
+      document.getElementById('decryptResult').classList.add('show');
+    };
+    img.src=e.target.result;
+  };
+  r.readAsDataURL(f);input.value='';
+}
+
+/* RESET */
+function resetForm(){
+  document.querySelectorAll('input[type="text"],input[type="number"],textarea').forEach(el=>el.value='');
+  document.querySelectorAll('select').forEach(el=>el.selectedIndex=0);
+  document.querySelectorAll('.custom-input').forEach(el=>el.classList.remove('show'));
+  removePhoto();unlockGender();stegoPayload='';
+  document.getElementById('cardWrapper').classList.remove('show');
+  document.getElementById('decryptResult').classList.remove('show');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+</script>
+</body>
+</html>
